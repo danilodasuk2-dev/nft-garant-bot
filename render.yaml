@@ -4,7 +4,7 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: npm install pnpm --ignore-scripts && node_modules/.bin/pnpm install --frozen-lockfile && node_modules/.bin/pnpm --filter @workspace/api-server run build
+    buildCommand: npm install pnpm --ignore-scripts && node_modules/.bin/pnpm install --no-frozen-lockfile && node_modules/.bin/pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
