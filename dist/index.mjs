@@ -44985,12 +44985,44 @@ if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
 var isProduction2 = process.env.NODE_ENV === "production";
+async function runMigrations() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS balances (
+      user_id TEXT PRIMARY KEY,
+      hrn TEXT NOT NULL DEFAULT '0',
+      rub TEXT NOT NULL DEFAULT '0',
+      ton TEXT NOT NULL DEFAULT '0',
+      stars TEXT NOT NULL DEFAULT '0',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+
+    CREATE TABLE IF NOT EXISTS deals (
+      deal_id TEXT PRIMARY KEY,
+      seller_id TEXT NOT NULL,
+      buyer_id TEXT,
+      title TEXT NOT NULL,
+      price TEXT NOT NULL,
+      currency TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'active',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  logger.info("Database tables ready");
+}
 app_default.listen(port, async (err) => {
   if (err) {
     logger.error({ err }, "Error listening on port");
     process.exit(1);
   }
   logger.info({ port }, "Server listening");
+  try {
+    await runMigrations();
+  } catch (migrationErr) {
+    logger.error({ err: migrationErr }, "Failed to run migrations");
+    process.exit(1);
+  }
   const bot = createBot();
   if (!bot) return;
   const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
