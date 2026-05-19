@@ -44993,14 +44993,11 @@ app_default.listen(port, async (err) => {
   logger.info({ port }, "Server listening");
   const bot = createBot();
   if (!bot) return;
-  if (isProduction2) {
-    const domains = process.env.REPLIT_DOMAINS;
-    const domain = domains?.split(",")[0]?.trim();
-    if (!domain) {
-      logger.error("REPLIT_DOMAINS not set \u2014 cannot register webhook");
-      return;
-    }
-    const webhookUrl = `https://${domain}/api/telegram`;
+  const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
+  const renderDomain = process.env.RENDER_EXTERNAL_URL ? process.env.RENDER_EXTERNAL_URL.replace(/^https?:\/\//, "").trim() : void 0;
+  const webhookDomain = replitDomain || renderDomain;
+  if (isProduction2 && webhookDomain) {
+    const webhookUrl = `https://${webhookDomain}/api/telegram`;
     app_default.post("/api/telegram", webhookCallback(bot, "express"));
     await bot.api.setWebhook(webhookUrl, { drop_pending_updates: true });
     logger.info({ webhookUrl }, "Telegram webhook registered");
