@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: nft-garant-bot
+    runtime: node
+    region: frankfurt
+    plan: free
+    buildCommand: npm install -g pnpm && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
+    healthCheckPath: /api/healthz
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: "8080"
+      - key: TELEGRAM_BOT_TOKEN
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        sync: false
+
+databases:
+  - name: nft-garant-db
+    region: frankfurt
+    plan: free
+    databaseName: garantbot
+    user: garantbot
