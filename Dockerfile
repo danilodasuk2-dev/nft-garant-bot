@@ -12,7 +12,7 @@ COPY lib/api-spec/ ./lib/api-spec/
 COPY lib/api-client-react/ ./lib/api-client-react/
 COPY artifacts/api-server/ ./artifacts/api-server/
 
-RUN pnpm install --no-frozen-lockfile
+RUN pnpm install --frozen-lockfile
 
 RUN pnpm --filter @workspace/api-server run build
 
