@@ -4,7 +4,7 @@ services:
     runtime: node
     region: frankfurt
     plan: free
-    buildCommand: corepack enable && pnpm install --frozen-lockfile && pnpm --filter @workspace/api-server run build
+    buildCommand: npm install pnpm --ignore-scripts && node_modules/.bin/pnpm install --frozen-lockfile && node_modules/.bin/pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
@@ -18,10 +18,3 @@ services:
         sync: false
       - key: SESSION_SECRET
         sync: false
-
-databases:
-  - name: nft-garant-db
-    region: frankfurt
-    plan: free
-    databaseName: garantbot
-    user: garantbot
