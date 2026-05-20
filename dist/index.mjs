@@ -44539,7 +44539,7 @@ function generateDealId() {
   return String(Math.floor(1e5 + Math.random() * 9e5));
 }
 function mainMenu() {
-  return new Keyboard().text("\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443").row().text("\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A").text("\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430").row().text("\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F").text("\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430").resized().persistent();
+  return new Keyboard().text("\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443").row().text("\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A").text("\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430").row().text("\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430").row().text("\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F").text("\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430").resized().persistent();
 }
 function esc(text2) {
   return text2.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
@@ -44716,6 +44716,43 @@ function createBot() {
       { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
     );
   }
+  async function sendMyStats(ctx) {
+    if (!isPrivate(ctx)) return;
+    const userId = String(ctx.from?.id ?? "");
+    const bal = await getOrCreateBalance(userId);
+    const allDeals = await db.select().from(dealsTable);
+    const asSellerTotal = allDeals.filter((d) => d.sellerId === userId).length;
+    const asSellerPaid = allDeals.filter((d) => d.sellerId === userId && d.status === "paid").length;
+    const asSellerActive = allDeals.filter((d) => d.sellerId === userId && d.status === "active").length;
+    const asBuyerTotal = allDeals.filter((d) => d.buyerId === userId).length;
+    const asBuyerPaid = allDeals.filter((d) => d.buyerId === userId && d.status === "paid").length;
+    const hrn = parseFloat(bal.hrn).toFixed(2);
+    const rub = parseFloat(bal.rub).toFixed(2);
+    const ton = parseFloat(bal.ton).toFixed(6);
+    const stars = parseFloat(bal.stars).toFixed(0);
+    await ctx.reply(
+      "\u{1F4C8} *\u0412\u0430\u0448\u0430 \u043B\u0438\u0447\u043D\u0430\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430*\n\n\u{1F194} *\u0412\u0430\u0448 ID:* `" + userId + `\`
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+\u{1F91D} *\u041A\u0430\u043A \u043F\u0440\u043E\u0434\u0430\u0432\u0435\u0446:*
+\u25AA\uFE0F \u0421\u043E\u0437\u0434\u0430\u043D\u043E \u0441\u0434\u0435\u043B\u043E\u043A: *${esc(String(asSellerTotal))}*
+\u25AA\uFE0F \u0417\u0430\u0432\u0435\u0440\u0448\u0435\u043D\u043E: *${esc(String(asSellerPaid))}*
+\u25AA\uFE0F \u0410\u043A\u0442\u0438\u0432\u043D\u044B\u0445: *${esc(String(asSellerActive))}*
+
+\u{1F6D2} *\u041A\u0430\u043A \u043F\u043E\u043A\u0443\u043F\u0430\u0442\u0435\u043B\u044C:*
+\u25AA\uFE0F \u041E\u043F\u043B\u0430\u0447\u0435\u043D\u043E \u0441\u0434\u0435\u043B\u043E\u043A: *${esc(String(asBuyerPaid))}* \u0438\u0437 ${esc(String(asBuyerTotal))}
+
+\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501\u2501
+\u{1F4BC} *\u0422\u0435\u043A\u0443\u0449\u0438\u0439 \u0431\u0430\u043B\u0430\u043D\u0441:*
+\u25AA\uFE0F ${num(hrn)} \u0413\u0420\u041D
+\u25AA\uFE0F ${num(rub)} \u0420\u0423\u0411
+\u25AA\uFE0F ${num(ton)} TON
+\u25AA\uFE0F ${num(stars)} \u0417\u0432\u0451\u0437\u0434\u044B
+
+\u{1F4E9} \u0414\u043B\u044F \u043F\u043E\u043F\u043E\u043B\u043D\u0435\u043D\u0438\u044F \u043E\u0431\u0440\u0430\u0442\u0438\u0442\u0435\u0441\u044C \u0432 \u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0443\\.`,
+      { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
+    );
+  }
   async function sendStats(ctx) {
     if (!isPrivate(ctx)) return;
     const allDeals = await db.select().from(dealsTable);
@@ -44772,10 +44809,12 @@ function createBot() {
   bot.hears("\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F", (ctx) => sendInstruction(ctx));
   bot.hears("\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", (ctx) => sendStats(ctx));
   bot.hears("\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A", (ctx) => sendWallet(ctx));
+  bot.hears("\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", (ctx) => sendMyStats(ctx));
   bot.command("support", (ctx) => sendSupport(ctx));
   bot.command("instruction", (ctx) => sendInstruction(ctx));
   bot.command("stats", (ctx) => sendStats(ctx));
   bot.command("wallet", (ctx) => sendWallet(ctx));
+  bot.command("mystats", (ctx) => sendMyStats(ctx));
   bot.hears("\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443", async (ctx) => {
     if (!isPrivate(ctx)) return;
     ctx.session.step = "title";
@@ -44914,7 +44953,7 @@ function createBot() {
     const step = ctx.session.step;
     const text2 = ctx.message.text;
     if (!text2 || text2.startsWith("/")) return;
-    const menuLabels = ["\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443", "\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A", "\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", "\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F", "\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430"];
+    const menuLabels = ["\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443", "\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A", "\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", "\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", "\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F", "\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430"];
     if (menuLabels.includes(text2)) return;
     if (step === "title") {
       if (text2.length > 200) {

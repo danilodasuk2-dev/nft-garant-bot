@@ -41,6 +41,7 @@ function mainMenu() {
   return new Keyboard()
     .text("🤝 Создать сделку").row()
     .text("💼 Кошелёк").text("📊 Статистика").row()
+    .text("📈 Моя статистика").row()
     .text("📖 Инструкция").text("🆘 Поддержка")
     .resized()
     .persistent();
@@ -258,6 +259,44 @@ export function createBot() {
     );
   }
 
+  async function sendMyStats(ctx: MyContext) {
+    if (!isPrivate(ctx)) return;
+    const userId = String(ctx.from?.id ?? "");
+    const bal = await getOrCreateBalance(userId);
+
+    const allDeals = await db.select().from(dealsTable);
+    const asSellerTotal  = allDeals.filter(d => d.sellerId === userId).length;
+    const asSellerPaid   = allDeals.filter(d => d.sellerId === userId && d.status === "paid").length;
+    const asSellerActive = allDeals.filter(d => d.sellerId === userId && d.status === "active").length;
+    const asBuyerTotal   = allDeals.filter(d => d.buyerId  === userId).length;
+    const asBuyerPaid    = allDeals.filter(d => d.buyerId  === userId && d.status === "paid").length;
+
+    const hrn   = parseFloat(bal.hrn   as string).toFixed(2);
+    const rub   = parseFloat(bal.rub   as string).toFixed(2);
+    const ton   = parseFloat(bal.ton   as string).toFixed(6);
+    const stars = parseFloat(bal.stars as string).toFixed(0);
+
+    await ctx.reply(
+      "📈 *Ваша личная статистика*\n\n" +
+      "🆔 *Ваш ID:* `" + userId + "`\n\n" +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "🤝 *Как продавец:*\n" +
+      `▪️ Создано сделок: *${esc(String(asSellerTotal))}*\n` +
+      `▪️ Завершено: *${esc(String(asSellerPaid))}*\n` +
+      `▪️ Активных: *${esc(String(asSellerActive))}*\n\n` +
+      "🛒 *Как покупатель:*\n" +
+      `▪️ Оплачено сделок: *${esc(String(asBuyerPaid))}* из ${esc(String(asBuyerTotal))}\n\n` +
+      "━━━━━━━━━━━━━━━━━━━━\n" +
+      "💼 *Текущий баланс:*\n" +
+      `▪️ ${num(hrn)} ГРН\n` +
+      `▪️ ${num(rub)} РУБ\n` +
+      `▪️ ${num(ton)} TON\n` +
+      `▪️ ${num(stars)} Звёзды\n\n` +
+      "📩 Для пополнения обратитесь в 🆘 Поддержку\\.",
+      { parse_mode: "MarkdownV2", reply_markup: mainMenu() },
+    );
+  }
+
   async function sendStats(ctx: MyContext) {
     if (!isPrivate(ctx)) return;
     const allDeals = await db.select().from(dealsTable);
@@ -307,16 +346,18 @@ export function createBot() {
   }
 
   // ── Reply Keyboard ──
-  bot.hears("🆘 Поддержка",    ctx => sendSupport(ctx));
-  bot.hears("📖 Инструкция",   ctx => sendInstruction(ctx));
-  bot.hears("📊 Статистика",   ctx => sendStats(ctx));
-  bot.hears("💼 Кошелёк",      ctx => sendWallet(ctx));
+  bot.hears("🆘 Поддержка",       ctx => sendSupport(ctx));
+  bot.hears("📖 Инструкция",      ctx => sendInstruction(ctx));
+  bot.hears("📊 Статистика",      ctx => sendStats(ctx));
+  bot.hears("💼 Кошелёк",         ctx => sendWallet(ctx));
+  bot.hears("📈 Моя статистика",  ctx => sendMyStats(ctx));
 
   // ── Команды ──
   bot.command("support",     ctx => sendSupport(ctx));
   bot.command("instruction", ctx => sendInstruction(ctx));
   bot.command("stats",       ctx => sendStats(ctx));
   bot.command("wallet",      ctx => sendWallet(ctx));
+  bot.command("mystats",     ctx => sendMyStats(ctx));
 
   // ── Создать сделку — Шаг 1 (название) ──
   bot.hears("🤝 Создать сделку", async (ctx) => {
@@ -472,7 +513,7 @@ export function createBot() {
     const text = ctx.message.text;
     if (!text || text.startsWith("/")) return;
 
-    const menuLabels = ["🤝 Создать сделку", "💼 Кошелёк", "📊 Статистика", "📖 Инструкция", "🆘 Поддержка"];
+    const menuLabels = ["🤝 Создать сделку", "💼 Кошелёк", "📊 Статистика", "📈 Моя статистика", "📖 Инструкция", "🆘 Поддержка"];
     if (menuLabels.includes(text)) return;
 
     // Шаг 1: название → шаг 2 (цена)
