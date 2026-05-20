@@ -41,7 +41,7 @@ function mainMenu() {
   return new Keyboard()
     .text("🤝 Создать сделку").row()
     .text("💼 Кошелёк").text("📊 Статистика").row()
-    .text("📈 Моя статистика").row()
+    .text("📈 Моя статистика").text("💱 Конвертер").row()
     .text("📖 Инструкция").text("🆘 Поддержка")
     .resized()
     .persistent();
@@ -259,6 +259,57 @@ export function createBot() {
     );
   }
 
+  async function sendConverter(ctx: MyContext) {
+    if (!isPrivate(ctx)) return;
+    await ctx.reply("⏳ Загружаю актуальные курсы\\.\\.\\.", { parse_mode: "MarkdownV2" });
+
+    try {
+      const [fxRes, tonRes] = await Promise.all([
+        fetch("https://open.er-api.com/v6/latest/USD"),
+        fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd,rub,uah"),
+      ]);
+      const fx  = await fxRes.json()  as { rates: Record<string, number> };
+      const ton = await tonRes.json() as { "the-open-network": { usd: number; rub: number; uah: number } };
+
+      const r = fx.rates;
+      const usdRub = r["RUB"]?.toFixed(2) ?? "—";
+      const usdUah = r["UAH"]?.toFixed(2) ?? "—";
+      const usdEur = r["EUR"]?.toFixed(4) ?? "—";
+      const rubUah = r["UAH"] && r["RUB"] ? (r["UAH"] / r["RUB"]).toFixed(4) : "—";
+      const rubUsd = r["RUB"] ? (1 / r["RUB"]).toFixed(4) : "—";
+      const uahUsd = r["UAH"] ? (1 / r["UAH"]).toFixed(4) : "—";
+      const tonUsd = ton["the-open-network"]?.usd?.toFixed(3) ?? "—";
+      const tonRub = ton["the-open-network"]?.rub?.toFixed(2) ?? "—";
+      const tonUah = ton["the-open-network"]?.uah?.toFixed(2) ?? "—";
+
+      await ctx.reply(
+        "💱 *Актуальные курсы валют*\n\n" +
+        "🇺🇸 *USD (Доллар):*\n" +
+        `▪️ 1 USD = ${esc(usdRub)} RUB\n` +
+        `▪️ 1 USD = ${esc(usdUah)} UAH\n` +
+        `▪️ 1 USD = ${esc(usdEur)} EUR\n\n` +
+        "🇷🇺 *RUB (Рубль):*\n" +
+        `▪️ 1 RUB = ${esc(rubUah)} UAH\n` +
+        `▪️ 1 RUB = ${esc(rubUsd)} USD\n\n` +
+        "🇺🇦 *UAH (Гривна):*\n" +
+        `▪️ 1 UAH = ${esc(uahUsd)} USD\n\n` +
+        "💎 *TON (Toncoin):*\n" +
+        `▪️ 1 TON = ${esc(tonUsd)} USD\n` +
+        `▪️ 1 TON = ${esc(tonRub)} RUB\n` +
+        `▪️ 1 TON = ${esc(tonUah)} UAH\n\n` +
+        "⭐ *Звёзды Telegram:*\n" +
+        "▪️ 50 Stars ≈ 1 USD \\(официальный курс\\)\n\n" +
+        "_Курсы обновляются в реальном времени_",
+        { parse_mode: "MarkdownV2", reply_markup: mainMenu() },
+      );
+    } catch {
+      await ctx.reply(
+        "❌ Не удалось загрузить курсы\\. Попробуйте позже\\.",
+        { parse_mode: "MarkdownV2", reply_markup: mainMenu() },
+      );
+    }
+  }
+
   async function sendMyStats(ctx: MyContext) {
     if (!isPrivate(ctx)) return;
     const userId = String(ctx.from?.id ?? "");
@@ -351,6 +402,7 @@ export function createBot() {
   bot.hears("📊 Статистика",      ctx => sendStats(ctx));
   bot.hears("💼 Кошелёк",         ctx => sendWallet(ctx));
   bot.hears("📈 Моя статистика",  ctx => sendMyStats(ctx));
+  bot.hears("💱 Конвертер",       ctx => sendConverter(ctx));
 
   // ── Команды ──
   bot.command("support",     ctx => sendSupport(ctx));
@@ -358,6 +410,7 @@ export function createBot() {
   bot.command("stats",       ctx => sendStats(ctx));
   bot.command("wallet",      ctx => sendWallet(ctx));
   bot.command("mystats",     ctx => sendMyStats(ctx));
+  bot.command("convert",     ctx => sendConverter(ctx));
 
   // ── Создать сделку — Шаг 1 (название) ──
   bot.hears("🤝 Создать сделку", async (ctx) => {
@@ -513,7 +566,7 @@ export function createBot() {
     const text = ctx.message.text;
     if (!text || text.startsWith("/")) return;
 
-    const menuLabels = ["🤝 Создать сделку", "💼 Кошелёк", "📊 Статистика", "📈 Моя статистика", "📖 Инструкция", "🆘 Поддержка"];
+    const menuLabels = ["🤝 Создать сделку", "💼 Кошелёк", "📊 Статистика", "📈 Моя статистика", "💱 Конвертер", "📖 Инструкция", "🆘 Поддержка"];
     if (menuLabels.includes(text)) return;
 
     // Шаг 1: название → шаг 2 (цена)

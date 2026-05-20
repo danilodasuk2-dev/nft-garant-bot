@@ -44539,7 +44539,7 @@ function generateDealId() {
   return String(Math.floor(1e5 + Math.random() * 9e5));
 }
 function mainMenu() {
-  return new Keyboard().text("\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443").row().text("\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A").text("\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430").row().text("\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430").row().text("\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F").text("\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430").resized().persistent();
+  return new Keyboard().text("\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443").row().text("\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A").text("\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430").row().text("\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430").text("\u{1F4B1} \u041A\u043E\u043D\u0432\u0435\u0440\u0442\u0435\u0440").row().text("\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F").text("\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430").resized().persistent();
 }
 function esc(text2) {
   return text2.replace(/[_*[\]()~`>#+\-=|{}.!\\]/g, "\\$&");
@@ -44716,6 +44716,59 @@ function createBot() {
       { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
     );
   }
+  async function sendConverter(ctx) {
+    if (!isPrivate(ctx)) return;
+    await ctx.reply("\u23F3 \u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044E \u0430\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0435 \u043A\u0443\u0440\u0441\u044B\\.\\.\\.", { parse_mode: "MarkdownV2" });
+    try {
+      const [fxRes, tonRes] = await Promise.all([
+        fetch("https://open.er-api.com/v6/latest/USD"),
+        fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd,rub,uah")
+      ]);
+      const fx = await fxRes.json();
+      const ton = await tonRes.json();
+      const r = fx.rates;
+      const usdRub = r["RUB"]?.toFixed(2) ?? "\u2014";
+      const usdUah = r["UAH"]?.toFixed(2) ?? "\u2014";
+      const usdEur = r["EUR"]?.toFixed(4) ?? "\u2014";
+      const rubUah = r["UAH"] && r["RUB"] ? (r["UAH"] / r["RUB"]).toFixed(4) : "\u2014";
+      const rubUsd = r["RUB"] ? (1 / r["RUB"]).toFixed(4) : "\u2014";
+      const uahUsd = r["UAH"] ? (1 / r["UAH"]).toFixed(4) : "\u2014";
+      const tonUsd = ton["the-open-network"]?.usd?.toFixed(3) ?? "\u2014";
+      const tonRub = ton["the-open-network"]?.rub?.toFixed(2) ?? "\u2014";
+      const tonUah = ton["the-open-network"]?.uah?.toFixed(2) ?? "\u2014";
+      await ctx.reply(
+        `\u{1F4B1} *\u0410\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0435 \u043A\u0443\u0440\u0441\u044B \u0432\u0430\u043B\u044E\u0442*
+
+\u{1F1FA}\u{1F1F8} *USD (\u0414\u043E\u043B\u043B\u0430\u0440):*
+\u25AA\uFE0F 1 USD = ${esc(usdRub)} RUB
+\u25AA\uFE0F 1 USD = ${esc(usdUah)} UAH
+\u25AA\uFE0F 1 USD = ${esc(usdEur)} EUR
+
+\u{1F1F7}\u{1F1FA} *RUB (\u0420\u0443\u0431\u043B\u044C):*
+\u25AA\uFE0F 1 RUB = ${esc(rubUah)} UAH
+\u25AA\uFE0F 1 RUB = ${esc(rubUsd)} USD
+
+\u{1F1FA}\u{1F1E6} *UAH (\u0413\u0440\u0438\u0432\u043D\u0430):*
+\u25AA\uFE0F 1 UAH = ${esc(uahUsd)} USD
+
+\u{1F48E} *TON (Toncoin):*
+\u25AA\uFE0F 1 TON = ${esc(tonUsd)} USD
+\u25AA\uFE0F 1 TON = ${esc(tonRub)} RUB
+\u25AA\uFE0F 1 TON = ${esc(tonUah)} UAH
+
+\u2B50 *\u0417\u0432\u0451\u0437\u0434\u044B Telegram:*
+\u25AA\uFE0F 50 Stars \u2248 1 USD \\(\u043E\u0444\u0438\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u0443\u0440\u0441\\)
+
+_\u041A\u0443\u0440\u0441\u044B \u043E\u0431\u043D\u043E\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438_`,
+        { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
+      );
+    } catch {
+      await ctx.reply(
+        "\u274C \u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u0443\u0440\u0441\u044B\\. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u043E\u0437\u0436\u0435\\.",
+        { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
+      );
+    }
+  }
   async function sendMyStats(ctx) {
     if (!isPrivate(ctx)) return;
     const userId = String(ctx.from?.id ?? "");
@@ -44810,11 +44863,13 @@ function createBot() {
   bot.hears("\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", (ctx) => sendStats(ctx));
   bot.hears("\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A", (ctx) => sendWallet(ctx));
   bot.hears("\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", (ctx) => sendMyStats(ctx));
+  bot.hears("\u{1F4B1} \u041A\u043E\u043D\u0432\u0435\u0440\u0442\u0435\u0440", (ctx) => sendConverter(ctx));
   bot.command("support", (ctx) => sendSupport(ctx));
   bot.command("instruction", (ctx) => sendInstruction(ctx));
   bot.command("stats", (ctx) => sendStats(ctx));
   bot.command("wallet", (ctx) => sendWallet(ctx));
   bot.command("mystats", (ctx) => sendMyStats(ctx));
+  bot.command("convert", (ctx) => sendConverter(ctx));
   bot.hears("\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443", async (ctx) => {
     if (!isPrivate(ctx)) return;
     ctx.session.step = "title";
@@ -44953,7 +45008,7 @@ function createBot() {
     const step = ctx.session.step;
     const text2 = ctx.message.text;
     if (!text2 || text2.startsWith("/")) return;
-    const menuLabels = ["\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443", "\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A", "\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", "\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", "\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F", "\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430"];
+    const menuLabels = ["\u{1F91D} \u0421\u043E\u0437\u0434\u0430\u0442\u044C \u0441\u0434\u0435\u043B\u043A\u0443", "\u{1F4BC} \u041A\u043E\u0448\u0435\u043B\u0451\u043A", "\u{1F4CA} \u0421\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", "\u{1F4C8} \u041C\u043E\u044F \u0441\u0442\u0430\u0442\u0438\u0441\u0442\u0438\u043A\u0430", "\u{1F4B1} \u041A\u043E\u043D\u0432\u0435\u0440\u0442\u0435\u0440", "\u{1F4D6} \u0418\u043D\u0441\u0442\u0440\u0443\u043A\u0446\u0438\u044F", "\u{1F198} \u041F\u043E\u0434\u0434\u0435\u0440\u0436\u043A\u0430"];
     if (menuLabels.includes(text2)) return;
     if (step === "title") {
       if (text2.length > 200) {
