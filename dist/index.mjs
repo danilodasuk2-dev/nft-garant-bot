@@ -45023,6 +45023,14 @@ app_default.listen(port, async (err) => {
     logger.error({ err: migrationErr }, "Failed to run migrations");
     process.exit(1);
   }
+  const selfUrl = process.env.RENDER_EXTERNAL_URL;
+  if (selfUrl) {
+    setInterval(() => {
+      fetch(`${selfUrl}/api/healthz`).catch(() => {
+      });
+    }, 4 * 60 * 1e3);
+    logger.info({ selfUrl }, "Self-ping enabled to prevent sleep");
+  }
   const bot = createBot();
   if (!bot) return;
   const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
