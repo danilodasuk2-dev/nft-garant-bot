@@ -45031,6 +45031,10 @@ app_default.listen(port, async (err) => {
     }, 4 * 60 * 1e3);
     logger.info({ selfUrl }, "Self-ping enabled to prevent sleep");
   }
+  if (process.env.REPLIT_DOMAINS && !isProduction2) {
+    logger.info("Replit dev mode \u2014 skipping bot startup (production bot runs on Render)");
+    return;
+  }
   const bot = createBot();
   if (!bot) return;
   const replitDomain = process.env.REPLIT_DOMAINS?.split(",")[0]?.trim();
