@@ -259,55 +259,89 @@ export function createBot() {
     );
   }
 
+  async function fetchRates(): Promise<{ rub: number; uah: number; eur: number } | null> {
+    const urls = [
+      "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+      "https://latest.currency-api.pages.dev/v1/currencies/usd.json",
+    ];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(5000) });
+        const data = await res.json() as { usd: Record<string, number> };
+        const r = data.usd;
+        if (r?.rub && r?.uah && r?.eur) return { rub: r.rub, uah: r.uah, eur: r.eur };
+      } catch { /* try next */ }
+    }
+    return null;
+  }
+
+  async function fetchTonUsd(): Promise<number | null> {
+    const urls = [
+      "https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT",
+      "https://api.bybit.com/v5/market/tickers?category=spot&symbol=TONUSDT",
+    ];
+    try {
+      const res = await fetch(urls[0], { signal: AbortSignal.timeout(5000) });
+      const data = await res.json() as { price?: string };
+      if (data.price) return parseFloat(data.price);
+    } catch { /* try next */ }
+    try {
+      const res = await fetch(urls[1], { signal: AbortSignal.timeout(5000) });
+      const data = await res.json() as { result?: { list?: Array<{ lastPrice: string }> } };
+      const p = data.result?.list?.[0]?.lastPrice;
+      if (p) return parseFloat(p);
+    } catch { /* failed */ }
+    return null;
+  }
+
   async function sendConverter(ctx: MyContext) {
     if (!isPrivate(ctx)) return;
     await ctx.reply("⏳ Загружаю актуальные курсы\\.\\.\\.", { parse_mode: "MarkdownV2" });
 
-    try {
-      const [fxRes, tonRes] = await Promise.all([
-        fetch("https://open.er-api.com/v6/latest/USD"),
-        fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd,rub,uah"),
-      ]);
-      const fx  = await fxRes.json()  as { rates: Record<string, number> };
-      const ton = await tonRes.json() as { "the-open-network": { usd: number; rub: number; uah: number } };
+    const [rates, tonUsdRaw] = await Promise.all([fetchRates(), fetchTonUsd()]);
 
-      const r = fx.rates;
-      const usdRub = r["RUB"]?.toFixed(2) ?? "—";
-      const usdUah = r["UAH"]?.toFixed(2) ?? "—";
-      const usdEur = r["EUR"]?.toFixed(4) ?? "—";
-      const rubUah = r["UAH"] && r["RUB"] ? (r["UAH"] / r["RUB"]).toFixed(4) : "—";
-      const rubUsd = r["RUB"] ? (1 / r["RUB"]).toFixed(4) : "—";
-      const uahUsd = r["UAH"] ? (1 / r["UAH"]).toFixed(4) : "—";
-      const tonUsd = ton["the-open-network"]?.usd?.toFixed(3) ?? "—";
-      const tonRub = ton["the-open-network"]?.rub?.toFixed(2) ?? "—";
-      const tonUah = ton["the-open-network"]?.uah?.toFixed(2) ?? "—";
+    if (!rates) {
+      await ctx.reply("❌ Не удалось загрузить курсы\\. Попробуйте через минуту\\.", { parse_mode: "MarkdownV2", reply_markup: mainMenu() });
+      return;
+    }
 
-      await ctx.reply(
-        "💱 *Актуальные курсы валют*\n\n" +
-        "🇺🇸 *USD (Доллар):*\n" +
-        `▪️ 1 USD = ${esc(usdRub)} RUB\n` +
-        `▪️ 1 USD = ${esc(usdUah)} UAH\n` +
-        `▪️ 1 USD = ${esc(usdEur)} EUR\n\n` +
-        "🇷🇺 *RUB (Рубль):*\n" +
-        `▪️ 1 RUB = ${esc(rubUah)} UAH\n` +
-        `▪️ 1 RUB = ${esc(rubUsd)} USD\n\n` +
-        "🇺🇦 *UAH (Гривна):*\n" +
-        `▪️ 1 UAH = ${esc(uahUsd)} USD\n\n` +
-        "💎 *TON (Toncoin):*\n" +
+    const { rub, uah, eur } = rates;
+    const usdRub = rub.toFixed(2);
+    const usdUah = uah.toFixed(2);
+    const usdEur = eur.toFixed(4);
+    const rubUah = (uah / rub).toFixed(4);
+    const rubUsd = (1 / rub).toFixed(5);
+    const uahUsd = (1 / uah).toFixed(5);
+
+    let tonBlock = "";
+    if (tonUsdRaw !== null) {
+      const tonUsd = tonUsdRaw.toFixed(3);
+      const tonRub = (tonUsdRaw * rub).toFixed(2);
+      const tonUah = (tonUsdRaw * uah).toFixed(2);
+      tonBlock =
+        "💎 *TON \\(Toncoin\\):*\n" +
         `▪️ 1 TON = ${esc(tonUsd)} USD\n` +
         `▪️ 1 TON = ${esc(tonRub)} RUB\n` +
-        `▪️ 1 TON = ${esc(tonUah)} UAH\n\n` +
-        "⭐ *Звёзды Telegram:*\n" +
-        "▪️ 50 Stars ≈ 1 USD \\(официальный курс\\)\n\n" +
-        "_Курсы обновляются в реальном времени_",
-        { parse_mode: "MarkdownV2", reply_markup: mainMenu() },
-      );
-    } catch {
-      await ctx.reply(
-        "❌ Не удалось загрузить курсы\\. Попробуйте позже\\.",
-        { parse_mode: "MarkdownV2", reply_markup: mainMenu() },
-      );
+        `▪️ 1 TON = ${esc(tonUah)} UAH\n\n`;
     }
+
+    await ctx.reply(
+      "💱 *Актуальные курсы валют*\n\n" +
+      "🇺🇸 *USD \\(Доллар\\):*\n" +
+      `▪️ 1 USD = ${esc(usdRub)} RUB\n` +
+      `▪️ 1 USD = ${esc(usdUah)} UAH\n` +
+      `▪️ 1 USD = ${esc(usdEur)} EUR\n\n` +
+      "🇷🇺 *RUB \\(Рубль\\):*\n" +
+      `▪️ 1 RUB = ${esc(rubUah)} UAH\n` +
+      `▪️ 1 RUB = ${esc(rubUsd)} USD\n\n` +
+      "🇺🇦 *UAH \\(Гривна\\):*\n" +
+      `▪️ 1 UAH = ${esc(uahUsd)} USD\n\n` +
+      tonBlock +
+      "⭐ *Звёзды Telegram:*\n" +
+      "▪️ 50 Stars ≈ 1 USD \\(официальный курс\\)\n\n" +
+      "_Курсы обновляются при каждом нажатии_",
+      { parse_mode: "MarkdownV2", reply_markup: mainMenu() },
+    );
   }
 
   async function sendMyStats(ctx: MyContext) {

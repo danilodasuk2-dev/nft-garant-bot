@@ -44716,58 +44716,87 @@ function createBot() {
       { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
     );
   }
+  async function fetchRates() {
+    const urls = [
+      "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json",
+      "https://latest.currency-api.pages.dev/v1/currencies/usd.json"
+    ];
+    for (const url of urls) {
+      try {
+        const res = await fetch(url, { signal: AbortSignal.timeout(5e3) });
+        const data = await res.json();
+        const r = data.usd;
+        if (r?.rub && r?.uah && r?.eur) return { rub: r.rub, uah: r.uah, eur: r.eur };
+      } catch {
+      }
+    }
+    return null;
+  }
+  async function fetchTonUsd() {
+    const urls = [
+      "https://api.binance.com/api/v3/ticker/price?symbol=TONUSDT",
+      "https://api.bybit.com/v5/market/tickers?category=spot&symbol=TONUSDT"
+    ];
+    try {
+      const res = await fetch(urls[0], { signal: AbortSignal.timeout(5e3) });
+      const data = await res.json();
+      if (data.price) return parseFloat(data.price);
+    } catch {
+    }
+    try {
+      const res = await fetch(urls[1], { signal: AbortSignal.timeout(5e3) });
+      const data = await res.json();
+      const p = data.result?.list?.[0]?.lastPrice;
+      if (p) return parseFloat(p);
+    } catch {
+    }
+    return null;
+  }
   async function sendConverter(ctx) {
     if (!isPrivate(ctx)) return;
     await ctx.reply("\u23F3 \u0417\u0430\u0433\u0440\u0443\u0436\u0430\u044E \u0430\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0435 \u043A\u0443\u0440\u0441\u044B\\.\\.\\.", { parse_mode: "MarkdownV2" });
-    try {
-      const [fxRes, tonRes] = await Promise.all([
-        fetch("https://open.er-api.com/v6/latest/USD"),
-        fetch("https://api.coingecko.com/api/v3/simple/price?ids=the-open-network&vs_currencies=usd,rub,uah")
-      ]);
-      const fx = await fxRes.json();
-      const ton = await tonRes.json();
-      const r = fx.rates;
-      const usdRub = r["RUB"]?.toFixed(2) ?? "\u2014";
-      const usdUah = r["UAH"]?.toFixed(2) ?? "\u2014";
-      const usdEur = r["EUR"]?.toFixed(4) ?? "\u2014";
-      const rubUah = r["UAH"] && r["RUB"] ? (r["UAH"] / r["RUB"]).toFixed(4) : "\u2014";
-      const rubUsd = r["RUB"] ? (1 / r["RUB"]).toFixed(4) : "\u2014";
-      const uahUsd = r["UAH"] ? (1 / r["UAH"]).toFixed(4) : "\u2014";
-      const tonUsd = ton["the-open-network"]?.usd?.toFixed(3) ?? "\u2014";
-      const tonRub = ton["the-open-network"]?.rub?.toFixed(2) ?? "\u2014";
-      const tonUah = ton["the-open-network"]?.uah?.toFixed(2) ?? "\u2014";
-      await ctx.reply(
-        `\u{1F4B1} *\u0410\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0435 \u043A\u0443\u0440\u0441\u044B \u0432\u0430\u043B\u044E\u0442*
-
-\u{1F1FA}\u{1F1F8} *USD (\u0414\u043E\u043B\u043B\u0430\u0440):*
-\u25AA\uFE0F 1 USD = ${esc(usdRub)} RUB
-\u25AA\uFE0F 1 USD = ${esc(usdUah)} UAH
-\u25AA\uFE0F 1 USD = ${esc(usdEur)} EUR
-
-\u{1F1F7}\u{1F1FA} *RUB (\u0420\u0443\u0431\u043B\u044C):*
-\u25AA\uFE0F 1 RUB = ${esc(rubUah)} UAH
-\u25AA\uFE0F 1 RUB = ${esc(rubUsd)} USD
-
-\u{1F1FA}\u{1F1E6} *UAH (\u0413\u0440\u0438\u0432\u043D\u0430):*
-\u25AA\uFE0F 1 UAH = ${esc(uahUsd)} USD
-
-\u{1F48E} *TON (Toncoin):*
+    const [rates, tonUsdRaw] = await Promise.all([fetchRates(), fetchTonUsd()]);
+    if (!rates) {
+      await ctx.reply("\u274C \u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u0443\u0440\u0441\u044B\\. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u0447\u0435\u0440\u0435\u0437 \u043C\u0438\u043D\u0443\u0442\u0443\\.", { parse_mode: "MarkdownV2", reply_markup: mainMenu() });
+      return;
+    }
+    const { rub, uah, eur } = rates;
+    const usdRub = rub.toFixed(2);
+    const usdUah = uah.toFixed(2);
+    const usdEur = eur.toFixed(4);
+    const rubUah = (uah / rub).toFixed(4);
+    const rubUsd = (1 / rub).toFixed(5);
+    const uahUsd = (1 / uah).toFixed(5);
+    let tonBlock = "";
+    if (tonUsdRaw !== null) {
+      const tonUsd = tonUsdRaw.toFixed(3);
+      const tonRub = (tonUsdRaw * rub).toFixed(2);
+      const tonUah = (tonUsdRaw * uah).toFixed(2);
+      tonBlock = `\u{1F48E} *TON \\(Toncoin\\):*
 \u25AA\uFE0F 1 TON = ${esc(tonUsd)} USD
 \u25AA\uFE0F 1 TON = ${esc(tonRub)} RUB
 \u25AA\uFE0F 1 TON = ${esc(tonUah)} UAH
 
-\u2B50 *\u0417\u0432\u0451\u0437\u0434\u044B Telegram:*
-\u25AA\uFE0F 50 Stars \u2248 1 USD \\(\u043E\u0444\u0438\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u0443\u0440\u0441\\)
-
-_\u041A\u0443\u0440\u0441\u044B \u043E\u0431\u043D\u043E\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u0432 \u0440\u0435\u0430\u043B\u044C\u043D\u043E\u043C \u0432\u0440\u0435\u043C\u0435\u043D\u0438_`,
-        { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
-      );
-    } catch {
-      await ctx.reply(
-        "\u274C \u041D\u0435 \u0443\u0434\u0430\u043B\u043E\u0441\u044C \u0437\u0430\u0433\u0440\u0443\u0437\u0438\u0442\u044C \u043A\u0443\u0440\u0441\u044B\\. \u041F\u043E\u043F\u0440\u043E\u0431\u0443\u0439\u0442\u0435 \u043F\u043E\u0437\u0436\u0435\\.",
-        { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
-      );
+`;
     }
+    await ctx.reply(
+      `\u{1F4B1} *\u0410\u043A\u0442\u0443\u0430\u043B\u044C\u043D\u044B\u0435 \u043A\u0443\u0440\u0441\u044B \u0432\u0430\u043B\u044E\u0442*
+
+\u{1F1FA}\u{1F1F8} *USD \\(\u0414\u043E\u043B\u043B\u0430\u0440\\):*
+\u25AA\uFE0F 1 USD = ${esc(usdRub)} RUB
+\u25AA\uFE0F 1 USD = ${esc(usdUah)} UAH
+\u25AA\uFE0F 1 USD = ${esc(usdEur)} EUR
+
+\u{1F1F7}\u{1F1FA} *RUB \\(\u0420\u0443\u0431\u043B\u044C\\):*
+\u25AA\uFE0F 1 RUB = ${esc(rubUah)} UAH
+\u25AA\uFE0F 1 RUB = ${esc(rubUsd)} USD
+
+\u{1F1FA}\u{1F1E6} *UAH \\(\u0413\u0440\u0438\u0432\u043D\u0430\\):*
+\u25AA\uFE0F 1 UAH = ${esc(uahUsd)} USD
+
+` + tonBlock + "\u2B50 *\u0417\u0432\u0451\u0437\u0434\u044B Telegram:*\n\u25AA\uFE0F 50 Stars \u2248 1 USD \\(\u043E\u0444\u0438\u0446\u0438\u0430\u043B\u044C\u043D\u044B\u0439 \u043A\u0443\u0440\u0441\\)\n\n_\u041A\u0443\u0440\u0441\u044B \u043E\u0431\u043D\u043E\u0432\u043B\u044F\u044E\u0442\u0441\u044F \u043F\u0440\u0438 \u043A\u0430\u0436\u0434\u043E\u043C \u043D\u0430\u0436\u0430\u0442\u0438\u0438_",
+      { parse_mode: "MarkdownV2", reply_markup: mainMenu() }
+    );
   }
   async function sendMyStats(ctx) {
     if (!isPrivate(ctx)) return;
