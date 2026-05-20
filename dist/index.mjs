@@ -45042,6 +45042,7 @@ app_default.listen(port, async (err) => {
     await bot.api.setWebhook(webhookUrl, { drop_pending_updates: true });
     logger.info({ webhookUrl }, "Telegram webhook registered");
   } else {
+    await bot.api.deleteWebhook({ drop_pending_updates: false });
     bot.start({
       onStart: (info) => logger.info({ username: info.username }, "Telegram bot started (polling)")
     });
